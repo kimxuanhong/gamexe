@@ -2,24 +2,48 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>2D Racing Game</title>
+    <meta name="description" content="A fun 2D racing game with arrow key controls">
+    <meta name="theme-color" content="#333333">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     <style>
-        body {
+        * {
             margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
             background-color: #222;
             font-family: Arial, sans-serif;
             touch-action: none;
         }
         #gameContainer {
-            position: relative;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         #gameCanvas {
-            border: 3px solid #444;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background-color: #333;
         }
         #score {
@@ -28,6 +52,7 @@
             left: 10px;
             color: white;
             font-size: 20px;
+            z-index: 10;
         }
         #gameOver {
             position: absolute;
@@ -41,6 +66,7 @@
             padding: 20px;
             border-radius: 10px;
             text-align: center;
+            z-index: 20;
         }
         #startScreen {
             position: absolute;
@@ -53,6 +79,7 @@
             padding: 20px;
             border-radius: 10px;
             text-align: center;
+            z-index: 20;
         }
         button {
             background-color: #4CAF50;
@@ -69,42 +96,44 @@
         }
         #mobileControls {
             position: absolute;
-            bottom: 10px;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             display: none;
-            width: 200px;
-            height: 200px;
+            width: 240px;
+            height: 240px;
+            z-index: 10;
         }
         .control-btn {
             position: absolute;
-            width: 60px;
-            height: 60px;
+            width: 70px;
+            height: 70px;
             background-color: rgba(255, 255, 255, 0.3);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 30px;
             color: white;
             user-select: none;
             -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
         #upBtn {
             top: 0;
-            left: 70px;
+            left: 85px;
         }
         #leftBtn {
-            top: 70px;
+            top: 85px;
             left: 0;
         }
         #rightBtn {
-            top: 70px;
-            left: 140px;
+            top: 85px;
+            left: 170px;
         }
         #downBtn {
-            top: 140px;
-            left: 70px;
+            top: 170px;
+            left: 85px;
         }
         .gold-text {
             color: gold;
@@ -137,12 +166,76 @@
                 opacity: 0;
             }
         }
+        #installBanner {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+            text-align: center;
+        }
+        #installBanner button {
+            margin: 5px;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        #fullscreenBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 10;
+        }
+        @media (orientation: portrait) {
+            #mobileControls {
+                bottom: 40px;
+            }
+        }
+        @media (orientation: landscape) {
+            #mobileControls {
+                bottom: 20px;
+                width: 200px;
+                height: 200px;
+            }
+            .control-btn {
+                width: 60px;
+                height: 60px;
+            }
+            #upBtn {
+                top: 0;
+                left: 70px;
+            }
+            #leftBtn {
+                top: 70px;
+                left: 0;
+            }
+            #rightBtn {
+                top: 70px;
+                left: 140px;
+            }
+            #downBtn {
+                top: 140px;
+                left: 70px;
+            }
+        }
     </style>
 </head>
 <body>
     <div id="gameContainer">
-        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <canvas id="gameCanvas"></canvas>
         <div id="score">Score: 0</div>
+        <button id="fullscreenBtn">⛶</button>
         <div id="gameOver">
             Game Over<br>
             <button id="restartButton">Play Again</button>
@@ -160,6 +253,110 @@
         </div>
     </div>
 
+    <div id="installBanner">
+        Cài đặt game này trên thiết bị của bạn!
+        <br>
+        <button id="installBtn">Cài đặt</button>
+        <button id="dismissBtn">Đóng</button>
+    </div>
+
     <script src="game.js"></script>
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+
+        // PWA Install Prompt
+        let deferredPrompt;
+        const installBanner = document.getElementById('installBanner');
+        const installBtn = document.getElementById('installBtn');
+        const dismissBtn = document.getElementById('dismissBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            // Update UI notify the user they can install the PWA
+            installBanner.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            // Hide the app provided install promotion
+            installBanner.style.display = 'none';
+            // Show the install prompt
+            deferredPrompt.prompt();
+            // Wait for the user to respond to the prompt
+            const { outcome } = await deferredPrompt.userChoice;
+            // Optionally, send analytics event with outcome of user choice
+            console.log(`User response to the install prompt: ${outcome}`);
+            // We've used the prompt, and can't use it again, throw it away
+            deferredPrompt = null;
+        });
+
+        dismissBtn.addEventListener('click', () => {
+            installBanner.style.display = 'none';
+        });
+
+        // Handle successful installs
+        window.addEventListener('appinstalled', (evt) => {
+            // Log install to analytics
+            console.log('Game was installed');
+            installBanner.style.display = 'none';
+        });
+
+        // Fullscreen mode
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        
+        fullscreenBtn.addEventListener('click', () => {
+            toggleFullscreen();
+        });
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                } else if (document.documentElement.msRequestFullscreen) {
+                    document.documentElement.msRequestFullscreen();
+                }
+                fullscreenBtn.innerHTML = "⊠";
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                fullscreenBtn.innerHTML = "⛶";
+            }
+        }
+        
+        // Handle screen orientation changes
+        window.addEventListener('resize', () => {
+            // Force canvas to redraw at new size
+            const gameCanvas = document.getElementById('gameCanvas');
+            gameCanvas.width = window.innerWidth;
+            gameCanvas.height = window.innerHeight;
+        });
+        
+        // Initial canvas size
+        window.addEventListener('load', () => {
+            const gameCanvas = document.getElementById('gameCanvas');
+            gameCanvas.width = window.innerWidth;
+            gameCanvas.height = window.innerHeight;
+        });
+    </script>
 </body>
 </html> 

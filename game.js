@@ -12,18 +12,10 @@ const leftBtn = document.getElementById('leftBtn');
 const rightBtn = document.getElementById('rightBtn');
 const downBtn = document.getElementById('downBtn');
 
-// Game settings
-const roadWidth = 300;
-const roadMarginLeft = (canvas.width - roadWidth) / 2;
-const laneWidth = roadWidth / 3;
-const carWidth = 40;
-const carHeight = 70;
-const obstacleWidth = 40;
-const obstacleHeight = 70;
-const roadLineHeight = 50;
-const roadLineGap = 30;
-const needleWidth = 15;
-const needleHeight = 30;
+// Game settings - will be adjusted based on screen size
+let roadWidth, roadMarginLeft, laneWidth, carWidth, carHeight;
+let obstacleWidth, obstacleHeight, roadLineHeight, roadLineGap;
+let needleWidth, needleHeight;
 
 // Game state
 let score = 0;
@@ -40,11 +32,13 @@ let needleFrequency = 150; // Lower means more frequent
 let frameCount = 0;
 let isMobileDevice = false;
 let isNewHighScore = false;
+let isOnline = navigator.onLine;
+let canvasRatio = 3/2; // Default height/width ratio
 
 // Player car
 const playerCar = {
-    x: canvas.width / 2 - carWidth / 2,
-    y: canvas.height - carHeight - 20,
+    x: 0, // Will be set in initGameDimensions
+    y: 0, // Will be set in initGameDimensions
     speed: 5,
     color: 'red'
 };
@@ -57,22 +51,85 @@ const keys = {
     ArrowRight: false
 };
 
+// Initialize game dimensions based on screen size
+function initGameDimensions() {
+    // Set canvas dimensions based on window size
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    // Calculate game dimensions based on screen size
+    roadWidth = Math.min(canvas.width * 0.8, 500);
+    roadMarginLeft = (canvas.width - roadWidth) / 2;
+    laneWidth = roadWidth / 3;
+    
+    carWidth = Math.min(roadWidth / 6, 50);
+    carHeight = carWidth * 1.75;
+    
+    obstacleWidth = carWidth;
+    obstacleHeight = carHeight;
+    
+    roadLineHeight = Math.min(canvas.height / 10, 50);
+    roadLineGap = roadLineHeight * 0.6;
+    
+    needleWidth = carWidth * 0.4;
+    needleHeight = carWidth * 0.8;
+    
+    // Set player car initial position
+    playerCar.x = canvas.width / 2 - carWidth / 2;
+    playerCar.y = canvas.height - carHeight - 50;
+    
+    // Adjust speeds based on screen size
+    const speedFactor = canvas.height / 600; // Base on 600px height
+    roadSpeed = Math.max(3, 5 * speedFactor);
+    obstacleSpeed = roadSpeed;
+    playerCar.speed = Math.max(3, 5 * speedFactor);
+    
+    // Reinitialize road lines
+    initRoadLines();
+}
+
+// Network status events
+window.addEventListener('online', function() {
+    isOnline = true;
+    showNetworkStatus("Online");
+});
+
+window.addEventListener('offline', function() {
+    isOnline = false;
+    showNetworkStatus("Offline - Game still playable!");
+});
+
+// Show network status message
+function showNetworkStatus(message) {
+    const statusElement = document.createElement('div');
+    statusElement.textContent = message;
+    statusElement.style.position = 'fixed';
+    statusElement.style.bottom = '50px';
+    statusElement.style.left = '50%';
+    statusElement.style.transform = 'translateX(-50%)';
+    statusElement.style.backgroundColor = isOnline ? 'green' : 'orange';
+    statusElement.style.color = 'white';
+    statusElement.style.padding = '10px';
+    statusElement.style.borderRadius = '5px';
+    statusElement.style.zIndex = '1000';
+    document.body.appendChild(statusElement);
+    
+    setTimeout(() => {
+        statusElement.style.opacity = '0';
+        statusElement.style.transition = 'opacity 1s';
+        setTimeout(() => {
+            if (statusElement.parentNode) {
+                document.body.removeChild(statusElement);
+            }
+        }, 1000);
+    }, 3000);
+}
+
 // Check if device is mobile
 function checkMobileDevice() {
     isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     if (isMobileDevice) {
         mobileControls.style.display = 'block';
-        
-        // Adjust canvas size for mobile if needed
-        const screenWidth = Math.min(window.innerWidth, 400);
-        const screenHeight = Math.min(window.innerHeight - 200, 600); // Leave space for controls
-        
-        canvas.width = screenWidth;
-        canvas.height = screenHeight;
-        
-        // Update player car position based on new canvas size
-        playerCar.x = canvas.width / 2 - carWidth / 2;
-        playerCar.y = canvas.height - carHeight - 20;
     }
 }
 
@@ -146,15 +203,15 @@ function drawPlayerCar() {
     
     // Windows
     ctx.fillStyle = '#333';
-    ctx.fillRect(playerCar.x + 5, playerCar.y + 5, carWidth - 10, 15);
-    ctx.fillRect(playerCar.x + 5, playerCar.y + carHeight - 25, carWidth - 10, 15);
+    ctx.fillRect(playerCar.x + 5, playerCar.y + 5, carWidth - 10, carHeight * 0.2);
+    ctx.fillRect(playerCar.x + 5, playerCar.y + carHeight - carHeight * 0.3, carWidth - 10, carHeight * 0.2);
     
     // Wheels
     ctx.fillStyle = 'black';
-    ctx.fillRect(playerCar.x - 3, playerCar.y + 10, 3, 15);
-    ctx.fillRect(playerCar.x - 3, playerCar.y + carHeight - 25, 3, 15);
-    ctx.fillRect(playerCar.x + carWidth, playerCar.y + 10, 3, 15);
-    ctx.fillRect(playerCar.x + carWidth, playerCar.y + carHeight - 25, 3, 15);
+    ctx.fillRect(playerCar.x - 3, playerCar.y + carHeight * 0.15, 3, carHeight * 0.2);
+    ctx.fillRect(playerCar.x - 3, playerCar.y + carHeight - carHeight * 0.35, 3, carHeight * 0.2);
+    ctx.fillRect(playerCar.x + carWidth, playerCar.y + carHeight * 0.15, 3, carHeight * 0.2);
+    ctx.fillRect(playerCar.x + carWidth, playerCar.y + carHeight - carHeight * 0.35, 3, carHeight * 0.2);
 }
 
 // Draw obstacles
@@ -165,15 +222,15 @@ function drawObstacles() {
         
         // Windows
         ctx.fillStyle = '#333';
-        ctx.fillRect(obstacle.x + 5, obstacle.y + 5, obstacleWidth - 10, 15);
-        ctx.fillRect(obstacle.x + 5, obstacle.y + obstacleHeight - 25, obstacleWidth - 10, 15);
+        ctx.fillRect(obstacle.x + 5, obstacle.y + 5, obstacleWidth - 10, obstacleHeight * 0.2);
+        ctx.fillRect(obstacle.x + 5, obstacle.y + obstacleHeight - obstacleHeight * 0.3, obstacleWidth - 10, obstacleHeight * 0.2);
         
         // Wheels
         ctx.fillStyle = 'black';
-        ctx.fillRect(obstacle.x - 3, obstacle.y + 10, 3, 15);
-        ctx.fillRect(obstacle.x - 3, obstacle.y + obstacleHeight - 25, 3, 15);
-        ctx.fillRect(obstacle.x + obstacleWidth, obstacle.y + 10, 3, 15);
-        ctx.fillRect(obstacle.x + obstacleWidth, obstacle.y + obstacleHeight - 25, 3, 15);
+        ctx.fillRect(obstacle.x - 3, obstacle.y + obstacleHeight * 0.15, 3, obstacleHeight * 0.2);
+        ctx.fillRect(obstacle.x - 3, obstacle.y + obstacleHeight - obstacleHeight * 0.35, 3, obstacleHeight * 0.2);
+        ctx.fillRect(obstacle.x + obstacleWidth, obstacle.y + obstacleHeight * 0.15, 3, obstacleHeight * 0.2);
+        ctx.fillRect(obstacle.x + obstacleWidth, obstacle.y + obstacleHeight - obstacleHeight * 0.35, 3, obstacleHeight * 0.2);
     });
 }
 
@@ -188,14 +245,14 @@ function drawNeedles() {
             // Needle sharp tip
             ctx.beginPath();
             ctx.moveTo(needle.x, needle.y);
-            ctx.lineTo(needle.x + needle.width / 2, needle.y - 10);
+            ctx.lineTo(needle.x + needle.width / 2, needle.y - needle.height * 0.2);
             ctx.lineTo(needle.x + needle.width, needle.y);
             ctx.fillStyle = '#AAA';
             ctx.fill();
             
             // Needle eye
             ctx.fillStyle = '#555';
-            ctx.fillRect(needle.x + needle.width / 4, needle.y + needle.height - 8, needle.width / 2, 5);
+            ctx.fillRect(needle.x + needle.width / 4, needle.y + needle.height - needle.height * 0.2, needle.width / 2, needle.height * 0.1);
         }
     });
 }
@@ -205,6 +262,15 @@ function drawHighScore() {
     ctx.fillStyle = 'white';
     ctx.font = '16px Arial';
     ctx.fillText(`High Score: ${highScore}`, canvas.width - 150, 25);
+}
+
+// Draw offline indicator if needed
+function drawOfflineIndicator() {
+    if (!isOnline) {
+        ctx.fillStyle = 'orange';
+        ctx.font = '14px Arial';
+        ctx.fillText('Offline Mode', 10, canvas.height - 10);
+    }
 }
 
 // Draw celebration effects
@@ -338,6 +404,7 @@ function gameLoop() {
     drawObstacles();
     drawNeedles();
     drawHighScore();
+    drawOfflineIndicator();
     
     // Draw celebration if new high score
     if (isNewHighScore) {
@@ -367,6 +434,9 @@ function gameOver() {
             <span style="color: gold; font-size: 30px;">CONGRATULATIONS!</span><br>
             <button id="restartButton">Play Again</button>
         `;
+        
+        // Save high score to IndexedDB for offline use
+        saveGameData();
     } else {
         gameOverElement.innerHTML = `
             Game Over<br>
@@ -382,28 +452,93 @@ function gameOver() {
     gameOverElement.style.display = 'block';
 }
 
+// Save game data to IndexedDB
+function saveGameData() {
+    if ('indexedDB' in window) {
+        const openRequest = indexedDB.open('RacingGameDB', 1);
+        
+        openRequest.onupgradeneeded = function(e) {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('gameData')) {
+                db.createObjectStore('gameData', { keyPath: 'id' });
+            }
+        };
+        
+        openRequest.onsuccess = function(e) {
+            const db = e.target.result;
+            const transaction = db.transaction(['gameData'], 'readwrite');
+            const store = transaction.objectStore('gameData');
+            
+            const gameData = {
+                id: 'highScore',
+                value: highScore
+            };
+            
+            store.put(gameData);
+        };
+    }
+}
+
+// Load game data from IndexedDB
+function loadGameData() {
+    if ('indexedDB' in window) {
+        const openRequest = indexedDB.open('RacingGameDB', 1);
+        
+        openRequest.onupgradeneeded = function(e) {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('gameData')) {
+                db.createObjectStore('gameData', { keyPath: 'id' });
+            }
+        };
+        
+        openRequest.onsuccess = function(e) {
+            const db = e.target.result;
+            const transaction = db.transaction(['gameData'], 'readonly');
+            const store = transaction.objectStore('gameData');
+            
+            const request = store.get('highScore');
+            
+            request.onsuccess = function() {
+                if (request.result) {
+                    // Use the higher score between localStorage and IndexedDB
+                    highScore = Math.max(highScore, request.result.value);
+                    localStorage.setItem('highScore', highScore);
+                    updateStartScreen();
+                }
+            };
+        };
+    }
+}
+
 // Reset game
 function resetGame() {
+    // Reset game state
     score = 0;
     scoreElement.textContent = `Score: ${score}`;
-    roadSpeed = 5;
-    obstacleSpeed = 5;
+    roadSpeed = 5 * (canvas.height / 600);
+    obstacleSpeed = roadSpeed;
     obstacleFrequency = 100;
     needleFrequency = 150;
     frameCount = 0;
     isNewHighScore = false;
-    playerCar.speed = 5;
+    playerCar.speed = 5 * (canvas.height / 600);
     
+    // Reset player position
     playerCar.x = canvas.width / 2 - carWidth / 2;
-    playerCar.y = canvas.height - carHeight - 20;
+    playerCar.y = canvas.height - carHeight - 50;
     
+    // Clear obstacles and needles
     obstacles = [];
     needles = [];
+    
+    // Reset road lines
     initRoadLines();
     
+    // Hide game over and start screens
     gameOverElement.style.display = 'none';
     startScreenElement.style.display = 'none';
     
+    // Start game loop
     gameRunning = true;
     animationId = requestAnimationFrame(gameLoop);
 }
@@ -411,17 +546,41 @@ function resetGame() {
 // Setup mobile touch controls
 function setupMobileControls() {
     // Handle touch events for mobile buttons
-    upBtn.addEventListener('touchstart', () => { keys.ArrowUp = true; });
-    upBtn.addEventListener('touchend', () => { keys.ArrowUp = false; });
+    upBtn.addEventListener('touchstart', (e) => { 
+        e.preventDefault();
+        keys.ArrowUp = true; 
+    });
+    upBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        keys.ArrowUp = false; 
+    });
     
-    leftBtn.addEventListener('touchstart', () => { keys.ArrowLeft = true; });
-    leftBtn.addEventListener('touchend', () => { keys.ArrowLeft = false; });
+    leftBtn.addEventListener('touchstart', (e) => { 
+        e.preventDefault();
+        keys.ArrowLeft = true; 
+    });
+    leftBtn.addEventListener('touchend', (e) => { 
+        e.preventDefault();
+        keys.ArrowLeft = false; 
+    });
     
-    rightBtn.addEventListener('touchstart', () => { keys.ArrowRight = true; });
-    rightBtn.addEventListener('touchend', () => { keys.ArrowRight = false; });
+    rightBtn.addEventListener('touchstart', (e) => { 
+        e.preventDefault();
+        keys.ArrowRight = true; 
+    });
+    rightBtn.addEventListener('touchend', (e) => { 
+        e.preventDefault();
+        keys.ArrowRight = false; 
+    });
     
-    downBtn.addEventListener('touchstart', () => { keys.ArrowDown = true; });
-    downBtn.addEventListener('touchend', () => { keys.ArrowDown = false; });
+    downBtn.addEventListener('touchstart', (e) => { 
+        e.preventDefault();
+        keys.ArrowDown = true; 
+    });
+    downBtn.addEventListener('touchend', (e) => { 
+        e.preventDefault();
+        keys.ArrowDown = false; 
+    });
     
     // Prevent default touch behavior to avoid scrolling
     document.addEventListener('touchmove', (e) => {
@@ -433,22 +592,28 @@ function setupMobileControls() {
 
 // Handle window resize
 function handleResize() {
-    if (isMobileDevice) {
-        const screenWidth = Math.min(window.innerWidth, 400);
-        const screenHeight = Math.min(window.innerHeight - 200, 600);
-        
-        canvas.width = screenWidth;
-        canvas.height = screenHeight;
-        
-        // Recalculate road dimensions
-        const roadMarginLeft = (canvas.width - roadWidth) / 2;
-        
-        // Reset player position
-        playerCar.x = canvas.width / 2 - carWidth / 2;
-        playerCar.y = canvas.height - carHeight - 20;
-        
-        // Reset road lines
-        initRoadLines();
+    // Store current position relative to screen size
+    const relXPos = (playerCar.x - (canvas.width / 2 - carWidth / 2)) / canvas.width;
+    const relYPos = (playerCar.y - (canvas.height - carHeight - 50)) / canvas.height;
+    
+    // Update dimensions
+    initGameDimensions();
+    
+    // Adjust player position
+    playerCar.x = (canvas.width / 2 - carWidth / 2) + (relXPos * canvas.width);
+    playerCar.y = (canvas.height - carHeight - 50) + (relYPos * canvas.height);
+    
+    // Make sure car stays on road
+    if (playerCar.x < roadMarginLeft) {
+        playerCar.x = roadMarginLeft;
+    } else if (playerCar.x > roadMarginLeft + roadWidth - carWidth) {
+        playerCar.x = roadMarginLeft + roadWidth - carWidth;
+    }
+    
+    if (playerCar.y < 0) {
+        playerCar.y = 0;
+    } else if (playerCar.y > canvas.height - carHeight) {
+        playerCar.y = canvas.height - carHeight;
     }
 }
 
@@ -479,18 +644,32 @@ document.addEventListener('keyup', (e) => {
     }
 });
 
+// Resize event handler
 window.addEventListener('resize', handleResize);
 
+// Start button event listener
 startButton.addEventListener('click', () => {
     resetGame();
 });
 
+// Restart button event listener
 restartButton.addEventListener('click', () => {
     resetGame();
+});
+
+// Screen orientation change handler
+window.addEventListener('orientationchange', () => {
+    setTimeout(handleResize, 100);
 });
 
 // Initialize game
 checkMobileDevice();
 setupMobileControls();
+loadGameData();
+initGameDimensions();
 updateStartScreen();
-initRoadLines(); 
+
+// Show network status on load
+if (!isOnline) {
+    showNetworkStatus("Offline - Game still playable!");
+} 
