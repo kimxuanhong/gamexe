@@ -7,10 +7,8 @@ const startScreenElement = document.getElementById('startScreen');
 const startButton = document.getElementById('startButton');
 const restartButton = document.getElementById('restartButton');
 const mobileControls = document.getElementById('mobileControls');
-const upBtn = document.getElementById('upBtn');
 const leftBtn = document.getElementById('leftBtn');
 const rightBtn = document.getElementById('rightBtn');
-const downBtn = document.getElementById('downBtn');
 
 // Game settings - will be adjusted based on screen size
 let roadWidth, roadMarginLeft, laneWidth, carWidth, carHeight;
@@ -34,6 +32,7 @@ let isMobileDevice = false;
 let isNewHighScore = false;
 let isOnline = navigator.onLine;
 let canvasRatio = 3/2; // Default height/width ratio
+let autoForward = true; // Car automatically moves forward
 
 // Player car
 const playerCar = {
@@ -45,8 +44,6 @@ const playerCar = {
 
 // Controls
 const keys = {
-    ArrowUp: false,
-    ArrowDown: false,
     ArrowLeft: false,
     ArrowRight: false
 };
@@ -299,18 +296,18 @@ function drawCelebration() {
 
 // Update game state
 function update() {
-    // Move player car
+    // Move player car left/right
     if (keys.ArrowLeft && playerCar.x > roadMarginLeft) {
         playerCar.x -= playerCar.speed;
     }
     if (keys.ArrowRight && playerCar.x < roadMarginLeft + roadWidth - carWidth) {
         playerCar.x += playerCar.speed;
     }
-    if (keys.ArrowUp && playerCar.y > 0) {
-        playerCar.y -= playerCar.speed;
-    }
-    if (keys.ArrowDown && playerCar.y < canvas.height - carHeight) {
-        playerCar.y += playerCar.speed;
+    
+    // Automatically move forward
+    if (autoForward) {
+        // Keep the car at a fixed y position, only the road moves
+        playerCar.y = canvas.height - carHeight - 50;
     }
     
     // Move road lines
@@ -546,15 +543,6 @@ function resetGame() {
 // Setup mobile touch controls
 function setupMobileControls() {
     // Handle touch events for mobile buttons
-    upBtn.addEventListener('touchstart', (e) => { 
-        e.preventDefault();
-        keys.ArrowUp = true; 
-    });
-    upBtn.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        keys.ArrowUp = false; 
-    });
-    
     leftBtn.addEventListener('touchstart', (e) => { 
         e.preventDefault();
         keys.ArrowLeft = true; 
@@ -573,15 +561,6 @@ function setupMobileControls() {
         keys.ArrowRight = false; 
     });
     
-    downBtn.addEventListener('touchstart', (e) => { 
-        e.preventDefault();
-        keys.ArrowDown = true; 
-    });
-    downBtn.addEventListener('touchend', (e) => { 
-        e.preventDefault();
-        keys.ArrowDown = false; 
-    });
-    
     // Prevent default touch behavior to avoid scrolling
     document.addEventListener('touchmove', (e) => {
         if (gameRunning) {
@@ -594,26 +573,18 @@ function setupMobileControls() {
 function handleResize() {
     // Store current position relative to screen size
     const relXPos = (playerCar.x - (canvas.width / 2 - carWidth / 2)) / canvas.width;
-    const relYPos = (playerCar.y - (canvas.height - carHeight - 50)) / canvas.height;
     
     // Update dimensions
     initGameDimensions();
     
     // Adjust player position
     playerCar.x = (canvas.width / 2 - carWidth / 2) + (relXPos * canvas.width);
-    playerCar.y = (canvas.height - carHeight - 50) + (relYPos * canvas.height);
     
     // Make sure car stays on road
     if (playerCar.x < roadMarginLeft) {
         playerCar.x = roadMarginLeft;
     } else if (playerCar.x > roadMarginLeft + roadWidth - carWidth) {
         playerCar.x = roadMarginLeft + roadWidth - carWidth;
-    }
-    
-    if (playerCar.y < 0) {
-        playerCar.y = 0;
-    } else if (playerCar.y > canvas.height - carHeight) {
-        playerCar.y = canvas.height - carHeight;
     }
 }
 
@@ -622,9 +593,17 @@ function updateStartScreen() {
     if (highScore > 0) {
         startScreenElement.innerHTML = `
             2D Racing Game<br>
-            Use Arrow Keys to Drive<br>
-            Current High Score: ${highScore}<br>
-            <button id="startButton">Start Game</button>
+            Di chuyển sang trái/phải để né chướng ngại vật<br>
+            Điểm cao nhất: ${highScore}<br>
+            <button id="startButton">Bắt đầu</button>
+        `;
+        // Reattach event listener
+        document.getElementById('startButton').addEventListener('click', resetGame);
+    } else {
+        startScreenElement.innerHTML = `
+            2D Racing Game<br>
+            Di chuyển sang trái/phải để né chướng ngại vật<br>
+            <button id="startButton">Bắt đầu</button>
         `;
         // Reattach event listener
         document.getElementById('startButton').addEventListener('click', resetGame);
