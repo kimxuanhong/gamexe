@@ -6,6 +6,11 @@ const gameOverElement = document.getElementById('gameOver');
 const startScreenElement = document.getElementById('startScreen');
 const startButton = document.getElementById('startButton');
 const restartButton = document.getElementById('restartButton');
+const mobileControls = document.getElementById('mobileControls');
+const upBtn = document.getElementById('upBtn');
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+const downBtn = document.getElementById('downBtn');
 
 // Game settings
 const roadWidth = 300;
@@ -28,6 +33,7 @@ let obstacles = [];
 let obstacleSpeed = 5;
 let obstacleFrequency = 100; // Lower means more frequent
 let frameCount = 0;
+let isMobileDevice = false;
 
 // Player car
 const playerCar = {
@@ -44,6 +50,25 @@ const keys = {
     ArrowLeft: false,
     ArrowRight: false
 };
+
+// Check if device is mobile
+function checkMobileDevice() {
+    isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobileDevice) {
+        mobileControls.style.display = 'block';
+        
+        // Adjust canvas size for mobile if needed
+        const screenWidth = Math.min(window.innerWidth, 400);
+        const screenHeight = Math.min(window.innerHeight - 200, 600); // Leave space for controls
+        
+        canvas.width = screenWidth;
+        canvas.height = screenHeight;
+        
+        // Update player car position based on new canvas size
+        playerCar.x = canvas.width / 2 - carWidth / 2;
+        playerCar.y = canvas.height - carHeight - 20;
+    }
+}
 
 // Initialize road lines
 function initRoadLines() {
@@ -244,6 +269,50 @@ function resetGame() {
     animationId = requestAnimationFrame(gameLoop);
 }
 
+// Setup mobile touch controls
+function setupMobileControls() {
+    // Handle touch events for mobile buttons
+    upBtn.addEventListener('touchstart', () => { keys.ArrowUp = true; });
+    upBtn.addEventListener('touchend', () => { keys.ArrowUp = false; });
+    
+    leftBtn.addEventListener('touchstart', () => { keys.ArrowLeft = true; });
+    leftBtn.addEventListener('touchend', () => { keys.ArrowLeft = false; });
+    
+    rightBtn.addEventListener('touchstart', () => { keys.ArrowRight = true; });
+    rightBtn.addEventListener('touchend', () => { keys.ArrowRight = false; });
+    
+    downBtn.addEventListener('touchstart', () => { keys.ArrowDown = true; });
+    downBtn.addEventListener('touchend', () => { keys.ArrowDown = false; });
+    
+    // Prevent default touch behavior to avoid scrolling
+    document.addEventListener('touchmove', (e) => {
+        if (gameRunning) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+}
+
+// Handle window resize
+function handleResize() {
+    if (isMobileDevice) {
+        const screenWidth = Math.min(window.innerWidth, 400);
+        const screenHeight = Math.min(window.innerHeight - 200, 600);
+        
+        canvas.width = screenWidth;
+        canvas.height = screenHeight;
+        
+        // Recalculate road dimensions
+        const roadMarginLeft = (canvas.width - roadWidth) / 2;
+        
+        // Reset player position
+        playerCar.x = canvas.width / 2 - carWidth / 2;
+        playerCar.y = canvas.height - carHeight - 20;
+        
+        // Reset road lines
+        initRoadLines();
+    }
+}
+
 // Event listeners
 document.addEventListener('keydown', (e) => {
     if (keys.hasOwnProperty(e.key)) {
@@ -257,6 +326,8 @@ document.addEventListener('keyup', (e) => {
     }
 });
 
+window.addEventListener('resize', handleResize);
+
 startButton.addEventListener('click', () => {
     resetGame();
 });
@@ -266,4 +337,6 @@ restartButton.addEventListener('click', () => {
 });
 
 // Initialize game
+checkMobileDevice();
+setupMobileControls();
 initRoadLines(); 
