@@ -22,18 +22,24 @@ const obstacleWidth = 40;
 const obstacleHeight = 70;
 const roadLineHeight = 50;
 const roadLineGap = 30;
+const needleWidth = 15;
+const needleHeight = 30;
 
 // Game state
 let score = 0;
+let highScore = localStorage.getItem('highScore') || 0;
 let animationId;
 let roadSpeed = 5;
 let roadLinesY = [];
 let gameRunning = false;
 let obstacles = [];
+let needles = [];
 let obstacleSpeed = 5;
 let obstacleFrequency = 100; // Lower means more frequent
+let needleFrequency = 150; // Lower means more frequent
 let frameCount = 0;
 let isMobileDevice = false;
+let isNewHighScore = false;
 
 // Player car
 const playerCar = {
@@ -93,6 +99,20 @@ function createObstacle() {
         width: obstacleWidth,
         height: obstacleHeight,
         color
+    });
+}
+
+// Create a needle on the road
+function createNeedle() {
+    const laneNumber = Math.floor(Math.random() * 3); // 0, 1, or 2
+    const x = roadMarginLeft + laneNumber * laneWidth + (laneWidth - needleWidth) / 2;
+    
+    needles.push({
+        x,
+        y: -needleHeight,
+        width: needleWidth,
+        height: needleHeight,
+        collected: false
     });
 }
 
@@ -157,6 +177,60 @@ function drawObstacles() {
     });
 }
 
+// Draw needles
+function drawNeedles() {
+    needles.forEach(needle => {
+        if (!needle.collected) {
+            // Needle metal part
+            ctx.fillStyle = '#CCC';
+            ctx.fillRect(needle.x, needle.y, needle.width, needle.height);
+            
+            // Needle sharp tip
+            ctx.beginPath();
+            ctx.moveTo(needle.x, needle.y);
+            ctx.lineTo(needle.x + needle.width / 2, needle.y - 10);
+            ctx.lineTo(needle.x + needle.width, needle.y);
+            ctx.fillStyle = '#AAA';
+            ctx.fill();
+            
+            // Needle eye
+            ctx.fillStyle = '#555';
+            ctx.fillRect(needle.x + needle.width / 4, needle.y + needle.height - 8, needle.width / 2, 5);
+        }
+    });
+}
+
+// Draw high score
+function drawHighScore() {
+    ctx.fillStyle = 'white';
+    ctx.font = '16px Arial';
+    ctx.fillText(`High Score: ${highScore}`, canvas.width - 150, 25);
+}
+
+// Draw celebration effects
+function drawCelebration() {
+    if (isNewHighScore) {
+        // Draw stars or particles around the screen
+        for (let i = 0; i < 20; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            const size = Math.random() * 10 + 5;
+            
+            ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Draw congratulation text
+        ctx.fillStyle = 'gold';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('NEW HIGH SCORE!', canvas.width / 2, 50);
+        ctx.textAlign = 'left';
+    }
+}
+
 // Update game state
 function update() {
     // Move player car
@@ -188,6 +262,11 @@ function update() {
         createObstacle();
     }
     
+    // Generate new needles
+    if (frameCount % needleFrequency === 0) {
+        createNeedle();
+    }
+    
     // Move obstacles
     obstacles = obstacles.filter(obstacle => {
         obstacle.y += obstacleSpeed;
@@ -211,13 +290,37 @@ function update() {
             // Increase difficulty
             if (score % 10 === 0) {
                 obstacleSpeed += 0.5;
+                needleFrequency = Math.max(100, needleFrequency - 5);
                 obstacleFrequency = Math.max(40, obstacleFrequency - 5);
                 roadSpeed += 0.5;
+                playerCar.speed = Math.min(10, playerCar.speed + 0.2);
             }
             return false;
         }
         
         return true;
+    });
+    
+    // Move and check needle collisions
+    needles = needles.filter(needle => {
+        needle.y += obstacleSpeed;
+        
+        // Check if player collected the needle
+        if (
+            !needle.collected &&
+            playerCar.x < needle.x + needle.width &&
+            playerCar.x + carWidth > needle.x &&
+            playerCar.y < needle.y + needle.height &&
+            playerCar.y + carHeight > needle.y
+        ) {
+            needle.collected = true;
+            score += 5; // Extra points for collecting a needle
+            scoreElement.textContent = `Score: ${score}`;
+            return false;
+        }
+        
+        // Remove needles that are off-screen
+        return needle.y <= canvas.height;
     });
 }
 
@@ -233,6 +336,13 @@ function gameLoop() {
     drawRoad();
     drawPlayerCar();
     drawObstacles();
+    drawNeedles();
+    drawHighScore();
+    
+    // Draw celebration if new high score
+    if (isNewHighScore) {
+        drawCelebration();
+    }
     
     // Continue loop
     if (gameRunning) {
@@ -244,6 +354,31 @@ function gameLoop() {
 function gameOver() {
     gameRunning = false;
     cancelAnimationFrame(animationId);
+    
+    // Check if this is a new high score
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('highScore', highScore);
+        isNewHighScore = true;
+        
+        // Update the game over text to show celebration
+        gameOverElement.innerHTML = `
+            <span style="color: gold; font-size: 50px;">NEW HIGH SCORE: ${score}!</span><br>
+            <span style="color: gold; font-size: 30px;">CONGRATULATIONS!</span><br>
+            <button id="restartButton">Play Again</button>
+        `;
+    } else {
+        gameOverElement.innerHTML = `
+            Game Over<br>
+            Your Score: ${score}<br>
+            High Score: ${highScore}<br>
+            <button id="restartButton">Play Again</button>
+        `;
+    }
+    
+    // Reattach the event listener to the newly created button
+    document.getElementById('restartButton').addEventListener('click', resetGame);
+    
     gameOverElement.style.display = 'block';
 }
 
@@ -254,12 +389,16 @@ function resetGame() {
     roadSpeed = 5;
     obstacleSpeed = 5;
     obstacleFrequency = 100;
+    needleFrequency = 150;
     frameCount = 0;
+    isNewHighScore = false;
+    playerCar.speed = 5;
     
     playerCar.x = canvas.width / 2 - carWidth / 2;
     playerCar.y = canvas.height - carHeight - 20;
     
     obstacles = [];
+    needles = [];
     initRoadLines();
     
     gameOverElement.style.display = 'none';
@@ -313,6 +452,20 @@ function handleResize() {
     }
 }
 
+// Update start screen to show high score
+function updateStartScreen() {
+    if (highScore > 0) {
+        startScreenElement.innerHTML = `
+            2D Racing Game<br>
+            Use Arrow Keys to Drive<br>
+            Current High Score: ${highScore}<br>
+            <button id="startButton">Start Game</button>
+        `;
+        // Reattach event listener
+        document.getElementById('startButton').addEventListener('click', resetGame);
+    }
+}
+
 // Event listeners
 document.addEventListener('keydown', (e) => {
     if (keys.hasOwnProperty(e.key)) {
@@ -339,4 +492,5 @@ restartButton.addEventListener('click', () => {
 // Initialize game
 checkMobileDevice();
 setupMobileControls();
+updateStartScreen();
 initRoadLines(); 
